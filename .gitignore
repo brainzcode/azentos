@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------
+# macOS
+# ---------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# ---------------------------------------------------------------
+# Windows / Linux (harmless to keep for collaborators)
+# ---------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.directory
+*~
+
+# ---------------------------------------------------------------
+# Editors
+# ---------------------------------------------------------------
+.vscode/*
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# ---------------------------------------------------------------
+# Agent / tooling local state
+# ---------------------------------------------------------------
+.claude/settings.local.json
+
+# ---------------------------------------------------------------
+# Secrets — never commit these
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------------------------------------------------------------
+# Dependencies & build output (for when this picks up a toolchain)
+# ---------------------------------------------------------------
+node_modules/
+.pnpm-store/
+dist/
+build/
+.cache/
+.parcel-cache/
+.vite/
+.temp/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------
+# Deploy platforms
+# ---------------------------------------------------------------
+.vercel
+.netlify
+
+# ---------------------------------------------------------------
+# Design reference
+#
+# assets/old/ holds the source art the shipped images were derived from.
+# The full-page reference screenshot alone is ~17MB, which is more than
+# the entire rest of the project — keep it locally, out of git history.
+# To drop the whole reference folder instead, uncomment the second line.
+# ---------------------------------------------------------------
+assets/old/screencapture-*.png
+# assets/old/

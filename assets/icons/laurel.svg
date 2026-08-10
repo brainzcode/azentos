@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" fill="currentColor" role="img" aria-label="Award laurels">
+  <g id="l">
+    <path d="M25 57Q3 34 21 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <ellipse cx="0" cy="0" rx="7.4" ry="3.1" transform="translate(24.0 48.7) rotate(-91.8)"/>
+    <ellipse cx="0" cy="0" rx="7.4" ry="3.1" transform="translate(16.6 54.1) rotate(-159.8)"/>
+    <ellipse cx="0" cy="0" rx="7.0" ry="2.9" transform="translate(20.1 42.0) rotate(-79.8)"/>
+    <ellipse cx="0" cy="0" rx="7.0" ry="2.9" transform="translate(11.7 45.7) rotate(-147.8)"/>
+    <ellipse cx="0" cy="0" rx="6.5" ry="2.7" transform="translate(18.0 35.1) rotate(-66.5)"/>
+    <ellipse cx="0" cy="0" rx="6.5" ry="2.7" transform="translate(9.0 36.8) rotate(-134.5)"/>
+    <ellipse cx="0" cy="0" rx="6.1" ry="2.5" transform="translate(17.5 27.9) rotate(-53.0)"/>
+    <ellipse cx="0" cy="0" rx="6.1" ry="2.5" transform="translate(8.4 27.5) rotate(-121.0)"/>
+    <ellipse cx="0" cy="0" rx="5.6" ry="2.4" transform="translate(18.8 20.3) rotate(-40.9)"/>
+    <ellipse cx="0" cy="0" rx="5.6" ry="2.4" transform="translate(9.9 17.9) rotate(-108.9)"/>
+    <ellipse cx="0" cy="0" rx="5.2" ry="2.2" transform="translate(21.8 12.2) rotate(-30.8)"/>
+    <ellipse cx="0" cy="0" rx="5.2" ry="2.2" transform="translate(13.5 8.3) rotate(-98.8)"/>
+  </g>
+  <use href="#l" transform="translate(60 0) scale(-1 1)"/>
+</svg>
