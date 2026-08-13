@@ -1036,11 +1036,19 @@ html.is-menu-open .site-head {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* hover and the entry settle share one transform channel, so neither clobbers
+     the other — only the custom property changes */
+  transform: scale(var(--img-scale, 1));
   transition: transform .9s var(--ease);
 }
 
 .showcase:hover .showcase__frame img {
-  transform: scale(1.04);
+  --img-scale: 1.04;
+}
+
+/* JS arms this before the card arrives; it settles back to 1 on entry */
+.showcase.is-armed .showcase__frame img {
+  --img-scale: 1.06;
 }
 
 .showcase__logo {
@@ -1908,6 +1916,63 @@ html.is-menu-open .site-head {
   height: .7em;
   margin-left: .25em;
   vertical-align: baseline;
+}
+
+/* =========================================================================
+   Scroll choreography
+   Everything here rides transform/opacity so it stays on the compositor.
+   JS adds .has-parallax, so a no-JS page keeps the plain static layout.
+   ========================================================================= */
+
+/* --- progress rule ------------------------------------------------------ */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: calc(var(--z-head) + 1);
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+/* --- parallax ------------------------------------------------------------
+   Any [data-parallax] element drifts against the page. It has to be inflated
+   past its clip on both edges so the drift can never expose a gap, which means
+   an object-fit:cover child gets re-fitted to the taller box — so only put this
+   on media whose exact framing is not load-bearing. The hero is not a candidate:
+   its badge is placed to land on the model's jacket, and re-fitting moves it. */
+html.has-parallax [data-parallax] {
+  will-change: transform;
+}
+
+/* 10% of cover top and bottom against a ±6.4% drift — enough margin that sub-pixel
+   rounding and browser zoom cannot pull an edge into view */
+.showcase__media {
+  position: absolute;
+  inset: -10% 0;
+}
+
+/* --- manifesto: a downward wipe, so the lines arrive top to bottom ------- */
+@property --wipe {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 100%;
+}
+
+/* Where @property is unsupported the custom property simply cannot animate, the
+   mask lands on its end value immediately, and the heading just fades in. */
+.manifesto__body.is-wipe {
+  --wipe: 0%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 var(--wipe), transparent calc(var(--wipe) + 24%));
+  mask-image: linear-gradient(to bottom, #000 var(--wipe), transparent calc(var(--wipe) + 24%));
+  transition: opacity .8s var(--ease), transform .9s var(--ease), --wipe 1.15s var(--ease);
+}
+
+.manifesto__body.is-wipe.is-in {
+  --wipe: 130%;
 }
 
 /* =========================================================================

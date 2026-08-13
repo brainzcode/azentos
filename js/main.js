@@ -45,20 +45,38 @@
     return getComputedStyle(head).position === 'fixed' ? head.offsetHeight + 10 : 0;
   }
 
+  /* Wheel momentum wants a fast attack — you flick, it answers, so the wheel keeps the
+     front-loaded expo curve. A navigation jump wants the opposite: accelerate away and
+     decelerate in, so the eye can follow where the page is going. It also has to scale
+     with distance, or Contact-from-the-top covers 4,500px in the same second a
+     one-section hop takes. Measured: the flat 1.05s expo peaked at 52,500px/s on that
+     jump — a blur. This peaks near 4,800 and starts moving sooner. */
+  function easeInOutSine(t) {
+    return -(Math.cos(Math.PI * t) - 1) / 2;
+  }
+
+  function jumpDuration(distance) {
+    return Math.min(1.5, Math.max(0.7, 0.35 + distance / 2600));
+  }
+
   function scrollToTarget(target) {
     var declared = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
     var extra = declared ? 0 : headClearance();
+    var top = target === document.body
+      ? 0
+      : Math.max(0, window.scrollY + target.getBoundingClientRect().top - declared - extra);
 
     if (lenis) {
-      lenis.scrollTo(target, { offset: -extra });
+      lenis.scrollTo(target, {
+        offset: -extra,   // Lenis reads scroll-margin-top itself; this is only the rest
+        duration: jumpDuration(Math.abs(top - window.scrollY)),
+        easing: easeInOutSine
+      });
       return;
     }
     // window.scrollTo ignores scroll-margin (only scrollIntoView honours it), so the
     // no-Lenis path has to apply the same number by hand to land in the same place
-    var top = target === document.body
-      ? 0
-      : window.scrollY + target.getBoundingClientRect().top - declared - extra;
-    window.scrollTo({ top: Math.max(0, top), behavior: reduced.matches ? 'auto' : 'smooth' });
+    window.scrollTo({ top: top, behavior: reduced.matches ? 'auto' : 'smooth' });
   }
 
   /* =======================================================================
@@ -281,18 +299,125 @@
       return;
     }
 
+    // the heading wipes downward as it fades, so its lines arrive in reading order
+    var manifesto = document.querySelector('.manifesto__body.reveal');
+    if (manifesto && CSS.supports('mask-image', 'linear-gradient(#000, transparent)')) {
+      manifesto.classList.add('is-wipe');
+    }
+
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('is-in');
-        io.unobserve(entry.target);
-      });
+      // Stagger by where things actually sit on screen, not by document index. A row
+      // of work cards should read left to right; the old (i % 4) counted through the
+      // whole page, so a card's delay depended on how many reveals preceded it.
+      entries
+        .filter(function (e) { return e.isIntersecting; })
+        .map(function (e) { return { el: e.target, box: e.boundingClientRect }; })
+        .sort(function (a, b) {
+          // bucket into rows first — grid siblings never share an exact top
+          var row = Math.round(a.box.top / 80) - Math.round(b.box.top / 80);
+          return row || (a.box.left - b.box.left);
+        })
+        .forEach(function (item, i) {
+          // cap it: a batch of ten must not leave the last one waiting two thirds
+          // of a second after the first
+          item.el.style.transitionDelay = (Math.min(i, 5) * 65) + 'ms';
+          item.el.classList.add('is-in');
+          io.unobserve(item.el);
+        });
     }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
 
-    nodes.forEach(function (n, i) {
-      n.style.transitionDelay = (Math.min(i % 4, 3) * 70) + 'ms';
-      io.observe(n);
+    nodes.forEach(function (n) { io.observe(n); });
+  }());
+
+  /* =======================================================================
+     Showcase — the media settles out of a slight overscale as it arrives
+     ===================================================================== */
+  (function showcaseEntry() {
+    var card = document.querySelector('.showcase');
+    if (!card || reduced.matches || !('IntersectionObserver' in window)) return;
+
+    card.classList.add('is-armed');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        card.classList.remove('is-armed');
+        io.disconnect();
+      });
+    }, { threshold: 0.2 });
+    io.observe(card);
+  }());
+
+  /* =======================================================================
+     Scroll-linked motion — one subscriber, one write pass per frame.
+     Rects are cached on resize so no frame reads layout back.
+     ===================================================================== */
+  (function scrollLinked() {
+    var bar = document.querySelector('.scroll-progress');
+    var drifters = reduced.matches
+      ? []
+      : [].slice.call(document.querySelectorAll('[data-parallax]'));
+
+    if (!bar && !drifters.length) return;
+    if (drifters.length) root.classList.add('has-parallax');
+
+    var items = [];
+    var vh = 0;
+    var limit = 1;
+    var queued = false;
+
+    function measure() {
+      vh = window.innerHeight;
+      limit = Math.max(1, root.scrollHeight - vh);
+      items = drifters.map(function (el) {
+        var box = el.getBoundingClientRect();
+        return {
+          el: el,
+          centre: window.scrollY + box.top + box.height / 2,
+          // half the distance over which the element crosses the viewport
+          span: (vh + box.height) / 2,
+          amp: box.height * (parseFloat(el.dataset.parallax) || 0)
+        };
+      });
+      draw();
+    }
+
+    function draw() {
+      queued = false;
+      var y = window.scrollY;
+
+      if (bar) {
+        var p = y / limit;
+        bar.style.transform = 'scaleX(' + (p < 0 ? 0 : p > 1 ? 1 : p).toFixed(4) + ')';
+      }
+
+      var viewCentre = y + vh / 2;
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        var t = (viewCentre - it.centre) / it.span;
+        t = t < -1 ? -1 : t > 1 ? 1 : t;
+        it.el.style.transform = 'translate3d(0,' + (t * it.amp).toFixed(2) + 'px,0)';
+      }
+    }
+
+    function queue() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(draw);
+    }
+
+    measure();
+    // Lenis emits inside its own RAF, so draw straight away rather than queueing
+    // another frame behind it — queueing would land the parallax one frame late
+    if (lenis) lenis.on('scroll', draw);
+    else window.addEventListener('scroll', queue, { passive: true });
+
+    var rt = null;
+    window.addEventListener('resize', function () {
+      if (rt) cancelAnimationFrame(rt);
+      rt = requestAnimationFrame(measure);
     });
+    window.addEventListener('load', measure);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
   }());
 
 }());
