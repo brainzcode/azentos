@@ -8,6 +8,60 @@
   var reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
   /* =======================================================================
+     Smooth scroll — Lenis eases the real scroll position, so sticky/fixed
+     elements, IntersectionObserver and window.scrollY all keep working
+     ===================================================================== */
+  var lenis = null;
+
+  function makeLenis() {
+    return new Lenis({
+      duration: 1.05,
+      easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
+      smoothWheel: true,
+      syncTouch: false,   // phones keep their native momentum — smoothing it feels laggy
+      autoRaf: true       // Lenis drives its own RAF; do not add a second ticker
+    });
+  }
+
+  if (!reduced.matches && window.Lenis) lenis = makeLenis();
+
+  // follow a live change to the OS setting, but never while the menu holds the lock —
+  // tearing Lenis down mid-lock would leave the page scrollable behind the overlay
+  reduced.addEventListener('change', function (e) {
+    if (root.classList.contains('is-menu-open') || !window.Lenis) return;
+    if (e.matches && lenis) { lenis.destroy(); lenis = null; }
+    else if (!e.matches && !lenis) { lenis = makeLenis(); }
+  });
+
+  /* Anchor offsets are already a design token: section[id] and footer[id] carry
+     scroll-margin-top: clamp(76px, 12vw, 110px). Lenis reads that property itself, so
+     passing a measured header height on top of it would land every section short by a
+     header. Only targets that declare no scroll margin need one measured for them. */
+  function headClearance() {
+    var head = document.querySelector('.site-head');
+    if (!head) return 0;
+    // the header only covers content while it is fixed — below 1024px, and whenever
+    // the menu is open. Above that it scrolls away and nothing needs clearing.
+    return getComputedStyle(head).position === 'fixed' ? head.offsetHeight + 10 : 0;
+  }
+
+  function scrollToTarget(target) {
+    var declared = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+    var extra = declared ? 0 : headClearance();
+
+    if (lenis) {
+      lenis.scrollTo(target, { offset: -extra });
+      return;
+    }
+    // window.scrollTo ignores scroll-margin (only scrollIntoView honours it), so the
+    // no-Lenis path has to apply the same number by hand to land in the same place
+    var top = target === document.body
+      ? 0
+      : window.scrollY + target.getBoundingClientRect().top - declared - extra;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduced.matches ? 'auto' : 'smooth' });
+  }
+
+  /* =======================================================================
      Mobile menu — one state function owns every attribute and the lock
      ===================================================================== */
   (function menu() {
@@ -37,21 +91,31 @@
       if (open) panel.removeAttribute('inert');
       else      panel.setAttribute('inert', '');
 
-      if (open) {
+      // One lock, never two. Lenis holds the page with its own overflow:clip and never
+      // touches the body, so the scroll position is never lost and there is nothing to
+      // restore on close. Pinning the body as well would collapse the page height,
+      // resync Lenis to 0, and drop the user at the top when the menu closes.
+      if (lenis) {
+        if (open) lenis.stop();
+        else      lenis.start();
+      } else if (open) {
         scrollY = window.scrollY;
         document.body.style.position = 'fixed';
         document.body.style.top   = -scrollY + 'px';
         document.body.style.left  = '0';
         document.body.style.right = '0';
-        panel.focus({ preventScroll: true });
-      } else {
+      } else if (document.body.style.position === 'fixed') {
         document.body.style.position = '';
         document.body.style.top   = '';
         document.body.style.left  = '';
         document.body.style.right = '';
+        // instant, because html no longer carries scroll-behavior: smooth — that pair
+        // was the visible bug: the page animated up from 0 back to where you were
         window.scrollTo(0, scrollY);
-        btn.focus({ preventScroll: true });
       }
+
+      if (open) panel.focus({ preventScroll: true });
+      else      btn.focus({ preventScroll: true });
     }
 
     btn.addEventListener('click', function () { set(!open); });
@@ -75,6 +139,31 @@
     // crossing into desktop must not strand the page in a locked state
     matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
       if (e.matches) set(false);
+    });
+  }());
+
+  /* =======================================================================
+     In-page anchors — routed through Lenis so they ease instead of jumping,
+     and clear the header when it is the fixed one
+     ===================================================================== */
+  (function anchors() {
+    document.addEventListener('click', function (e) {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!e.target.closest) return;
+
+      var a = e.target.closest('a[href]');
+      if (!a || a.target === '_blank') return;
+
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#' || href === '#') return;
+
+      var target = document.getElementById(href.slice(1));
+      if (!target) return;
+
+      e.preventDefault();
+      scrollToTarget(target);
+      // keep the URL honest without letting the browser jump; harmless if file:// refuses
+      try { history.replaceState(null, '', href); } catch (err) { /* file:// */ }
     });
   }());
 

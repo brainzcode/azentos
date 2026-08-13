@@ -72,9 +72,30 @@
   box-sizing: border-box;
 }
 
+/* No scroll-behavior: smooth here. Lenis eases the native scroll position itself, and
+   the CSS property fights it — anchor jumps double-animate, and any programmatic
+   scrollTo used to restore a position animates from wherever the page currently sits. */
 html {
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
+}
+
+/* --- Lenis ---------------------------------------------------------------- */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+/* the scroll lock: no scrollport, so nothing behind an overlay can move */
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
 }
 
 body {
@@ -333,6 +354,7 @@ footer[id] {
   position: absolute;
   inset: 0 0 auto;
   z-index: var(--z-head);
+  /* --- see also: html.is-menu-open .site-head, below the burger --- */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -464,6 +486,14 @@ html.is-menu-open .burger i:first-child {
 
 html.is-menu-open .burger i:last-child {
   transform: rotate(-45deg);
+}
+
+/* Locking the scroll removes the scrollport, and an absolutely-positioned header has
+   nothing left to hold it in view — it renders at its place in the document, i.e. the
+   top of the page, taking the close button off screen with it. Below 1024px the header
+   is already fixed; this keeps that true no matter where the breakpoint moves. */
+html.is-menu-open .site-head {
+  position: fixed;
 }
 
 /* --- panel -------------------------------------------------------------- */
